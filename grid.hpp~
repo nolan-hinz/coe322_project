@@ -1,0 +1,36 @@
+#pragma once // Make sure the file is included only once
+
+// Define our enum class which holds the values a cell may hold
+enum class cell_type { water_only=0 , turtle=1 , ship=2 , garbage=3 };
+
+class cell; // Forward definition
+
+class grid_2d {
+private:
+  vector<cell> grid_pts; // vector of grid pts, each is a cell
+public:
+  // Constructor
+  grid_2d( int &m , int &n ) : grid_pts(m*n) {};
+
+  // Methods
+  
+}; // End defining 2d grid class
+
+// Define the cell class which will make up the ocean grid
+class cell {
+private:
+  // Default cell is open water
+  cell_type this_cell_type{cell_type::water_only}; 
+public:
+  // Constructors
+  cell() = default;
+  cell( cell_type t ) : this_cell_type(t) {};
+
+  // Overloading
+  bool operator == ( cell_type &t ) { return this_cell_type == t; }
+  
+  // Begin methods
+  cell_type get_cell_type() { return this_cell_type; }
+
+  void set_cell_type( cell_type t ) { this_cell_type = t; }
+}; // End of cell class
