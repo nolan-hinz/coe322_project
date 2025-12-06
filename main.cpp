@@ -2,7 +2,7 @@
 #include "ocean.hpp"
 
 int main() {
-  ocean test_ocean(10,10);
+  ocean test_ocean(20,20);
   test_ocean.initiate_grid(5,10,15);
   test_ocean.print_grid();
   test_ocean.simulate(1);

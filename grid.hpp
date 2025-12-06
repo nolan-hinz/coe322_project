@@ -91,7 +91,9 @@ public:
       while ( !valid_cell_move ) {
 	// Get a cell to move to
 	int move_to_cell = distribution(generator);
-	auto [new_i,new_j] = get_new_indicies(i, j, move_to_cell);
+	auto [tmp_i,tmp_j] = get_new_indicies(i, j, move_to_cell);
+	new_i = tmp_i;
+	new_j = tmp_j;
 	valid_cell_move = is_valid_move(i, j, new_i, new_j);
       }
       return {new_i,new_j};
@@ -120,7 +122,7 @@ public:
 
   bool is_valid_move(int i, int j, int new_i, int new_j) {
     if (new_i < 0 || new_j < 0) return false;
-    if (new_i > m || new_j > n) return false;
+    if (new_i >= m || new_j >= n) return false;
     //if ( get_cell_type(new_i,new_j) == cell_type::ship || get_cell_type(new_i,new_j) == cell_type::turtle ) return false;
     return true;
   } // Done checking if the move is valid
