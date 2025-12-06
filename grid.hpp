@@ -78,7 +78,7 @@ public:
     // Takes indicies of a grid and will return updated indicies for where the cell went after
 
     // Random generator
-    std::default_random_engine generator;
+    std::mt19937 generator(std::random_device{}());
     std::uniform_int_distribution<int> distribution(0,7);
     
     // No need to move water or garbage

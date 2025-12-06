@@ -73,23 +73,15 @@ public:
 	  // check if the move is valid
 	  bool is_valid = false;
 	  int new_i, new_j;
-	  while (!is_valid) {
+	  
+	  while (!is_valid && xx<100) {
+	   
 	    auto [tmp_i,tmp_j] = last_grid.random_motion(i,j);
 	    new_i = tmp_i;
 	    new_j = tmp_j;
-	    switch (cur_type) {
-	    case cell_type::ship:
-	      if ( current_grid(new_i,new_j).get_cell_type()==cell_type::ship || current_grid(new_i,new_j).get_cell_type()==cell_type::turtle ) { is_valid=false; }
-	      else { is_valid = true; }
-	      break;
-	    case cell_type::turtle:
-	      if ( current_grid(new_i,new_j).get_cell_type()==cell_type::ship || current_grid(new_i,new_j).get_cell_type()==cell_type::turtle) { is_valid=false; }
-	      else { is_valid = true; }
-	      break;
-	    defualt:
-		is_valid = true;
-		break;
-	    }
+	    std::cout << "new i: " << new_i << ", new j: " << new_j << '\n';
+	    bool is_valid = !(current_grid(new_i,new_j).get_cell_type()==cell_type::ship ||
+			      current_grid(new_i,new_j).get_cell_type()==cell_type::turtle);
 	  }
 	  
 	  
