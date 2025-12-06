@@ -64,43 +64,60 @@ public:
     // 6  5  4
     // Ship will pick a random square around it assuming it is not
     // the edge and then it will move it there
-    current_grid = last_grid;
     for ( int i=0 ; i < n_rows ; i++ ) {
       for ( int j=0 ; j < n_cols ; j++ ) {
 	cell_type cur_type = last_grid(i,j).get_cell_type();
 
-	if (cur_type == cell_type::ship || cur_type == cell_type::turtle ) {
-	  // check if the move is valid
+	// First move all the garbage over
+	// Everything else will start as just water
+	if ( cur_type == cell_type::garbage ) {
+	  current_grid(i,j) = cur_type;
+	}
+	else {
+	  current_grid(i,j) = cell_type::water_only;
+	}
+      }
+    }
+
+    for ( int i=0 ; i<n_rows ; i++ ) {
+      for ( int j=0 ; j<n_cols ; j++ ) {
+	cell_type cur_type = last_grid(i,j).get_cell_type();
+
+	if (cur_type == cell_type::ship || cur_type == cell_type::turtle) {
 	  bool is_valid = false;
 	  int new_i, new_j;
-	  
-	  while (!is_valid && xx<100) {
-	   
+	  int attempts_to_move = 0;
+	  while (!is_valid) {
 	    auto [tmp_i,tmp_j] = last_grid.random_motion(i,j);
 	    new_i = tmp_i;
 	    new_j = tmp_j;
-	    std::cout << "new i: " << new_i << ", new j: " << new_j << '\n';
-	    bool is_valid = !(current_grid(new_i,new_j).get_cell_type()==cell_type::ship ||
-			      current_grid(new_i,new_j).get_cell_type()==cell_type::turtle);
+	    is_valid = !(current_grid(new_i,new_j).get_cell_type()==cell_type::ship ||
+			 current_grid(new_i,new_j).get_cell_type()==cell_type::turtle);
+	    // If we try to move too many times then just don't move
+	    attempts_to_move++;
+	    if (attempts_to_move >= 100) {
+	      new_i = i;
+	      new_j = j;
+	      break;
+	    }
 	  }
-	  
-	  
-	  if ( current_grid(new_i,new_j).get_cell_type()==cell_type::water_only ) {
-	    // if grid pt is just water move it there and set old pt to water
+	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::garbage && cur_type==cell_type::turtle) {
+	    // Turtle dies in this case
+	    current_grid(new_i,new_j) = cell_type::garbage;
+	    current_grid(i,j) = cell_type::water_only;
+	  }
+	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::garbage && cur_type==cell_type::ship) {
+	    // ship picks up the garbage
+	    current_grid(new_i,new_j) = cell_type::ship;
+	    current_grid(i,j) = cell_type::water_only;
+	  }
+	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::water_only) {
 	    current_grid(new_i,new_j) = cur_type;
 	    current_grid(i,j) = cell_type::water_only;
 	  }
-	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::garbage) {
-	    // if turtle tries to move onto garbage it dies
-	    // if ship tries to move onto garbage it picks it up
-	    if (cur_type == cell_type::turtle) {
-	      current_grid(new_i,new_j) = cell_type::garbage;
-	      current_grid(i,j) = cell_type::water_only;
-	    }
-	    if (cur_type == cell_type::ship) {
-	      current_grid(new_i,new_j) = cell_type::ship;
-	      current_grid(i,j) = cell_type::water_only;
-	    }
+	  if ( new_i == i && new_j == j ) {
+	    // if thing didn't move make sure we still put it in the new grid
+	    current_grid(i,j) = cur_type;
 	  }
 	}
       }
