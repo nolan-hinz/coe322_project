@@ -34,32 +34,41 @@ public:
       int j = idx%n_cols;
       last_grid(i,j) = cell_type::ship;
       idx++;
-    }
+    } // End filling with ships
     
     for ( int turtle=0 ; turtle < turtle_count ; turtle++ ) {
       int i = idx/n_cols;
       int j = idx%n_cols;
       last_grid(i,j) = cell_type::turtle;
       idx++;
-    }
+    } // End filling with turtles
     
     for ( int garbage=0 ; garbage < garbage_count ; garbage++ ) {
       int i = idx/n_cols;
       int j = idx%n_cols;
       last_grid(i,j) = cell_type::garbage;
       idx++;
-    }
+    } // End filling with garbage
 
-    // Now we are done filling grid with correct number of ships, garbage and turtles, we should randomly shuffle it before we start the simulation
+    // Done filling grid so shuffle it before we begin
     last_grid.shuffle_grid();
-    
-    // Now we got a shuffled grid we can start simulation
-      
   } // Done initiateing tshe random grid
   void print_grid() { last_grid.print_grid(); }; // printout of the grid
 
   void reproduce_turtles( double rate ) {
-    
+    int current_turtle_count = last_grid.get_num_cell_type(cell_type::turtle);
+
+    // Get turtles to add
+    int delta_turtles = round(rate*current_turtle_count);
+
+    for ( int i=0 ; i<delta_turtles ; i++ ) {
+      for ( auto [ii,jj] : permuted_indicies() ) {
+	if (last_grid.get_cell_type(ii,jj) == cell_type::water_only) {
+	  last_grid(ii,jj) = cell_type::turtle;
+	  break;
+	} // Done checking if we can place a turtle here
+      } // End looping over indicies of grid
+    } // End looping over number of turtles to add to the ocean
   } // End reproducing turtles
 
   std::vector<std::pair<int,int>> permuted_indicies() {

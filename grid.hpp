@@ -24,7 +24,7 @@ public:
 
   void operator = ( cell_type t ) { this_cell_type = t; } // Lets us easily set a cell to a value
 
-    // Begin methods
+  // Begin methods
   cell_type get_cell_type() { return this_cell_type; }
 
   void set_cell_type( cell_type t ) { this_cell_type = t; }
