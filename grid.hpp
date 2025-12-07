@@ -23,12 +23,25 @@ public:
   bool operator == ( cell_type t ) { return this_cell_type == t; }
 
   void operator = ( cell_type t ) { this_cell_type = t; } // Lets us easily set a cell to a value
-  
-  // Begin methods
+
+    // Begin methods
   cell_type get_cell_type() { return this_cell_type; }
-  
+
   void set_cell_type( cell_type t ) { this_cell_type = t; }
+
+  // Declare friend function so << operator can get private info
+  friend std::ostream& operator<<(std::ostream &os, const cell &c);
 }; // End of cell class
+
+// Overload << so we can cout a cell directly
+std::ostream& operator<<(std::ostream &os, const cell &c) {
+  switch (c.this_cell_type) {
+  case cell_type::water_only: os << " "; break;
+  case cell_type::ship:       os << "|"; break;
+  case cell_type::turtle:     os << "O"; break;
+  case cell_type::garbage:    os << "X"; break;
+  } // Done writing correct cell type out to screen
+} // End overloading << to cout cells
 
 class grid_2d {
 private:
@@ -43,89 +56,100 @@ public:
   
   // Methods
   void shuffle_grid() {
-    std::random_device rd;
+    std::random_device r;
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // KEEPING SEED SAME FOR TESTING REMEMBER TO REMOVE
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    std::mt19937 generator(1000);
+    std::default_random_engine generator(1000);
     // Shuffle using the generator we created
     std::shuffle(grid_pts.begin(), grid_pts.end(), generator);
   } // End of shuffle grid
 
+  int get_num_cell_type( const cell_type &ct ) {
+    // Takes a cell type and returns the amount of that cell in the grid
+    int count = 0;
+    for (int i=0 ; i<m ; i++) {
+      for (int j=0 ; j<n ; j++) {
+	if ( ct == get_cell_type(i,j) ) { count++; }
+      } // End loop over columns
+    } // End loop over rows
+  } // End function for counting cells of a certain type
+  
   void print_grid() {
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < n; ++j) {
-	  cell_type t = get_cell_type(i,j);
-
-            char symbol;
-            switch (t) {
-                case cell_type::water_only: symbol = ' ';  break;
-                case cell_type::turtle:     symbol = 'O';  break;
-                case cell_type::ship:       symbol = '|';  break;
-                case cell_type::garbage:    symbol = 'X';  break;
-                default:                    symbol = '?';  break;
-            }
-
-            std::cout << symbol << " ";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "---------------------------------" << '\n';
-  }
+    // Function that prints out the grid
+    for (int i=0 ; i<m ; i++) {
+      for (int j=0 ; j<n ; j++) {
+	std::cout << get_cell(i,j);
+      } // End loop over the columns
+      std::cout << '\n';
+    } // End loop over the rows
+    for (int i=0 ; i<m ; i++) { std::cout << "-"; }
+    std::cout << '\n'
+  } // End printing out the grid
+  
   cell& get_cell( int i , int j ) { return grid_pts.at( i*n + j ); } // Reference so we can modify the grid
 
-  pair<int,int> random_motion( int i , int j ) {
-    // Takes indicies of a grid and will return updated indicies for where the cell went after
-
+  void random_motion( int i , int j , grid_2d &g ) {
+    // Takes indicies of a grid, determines what is at that grid point.
+    // If it's a ship or a turtle it picks a new location for it in an adjacent cell.
+    // It then makes that move on a different grid which is passed to the function (g)
+    // The function checks the new grid (g), to make sure the move is valid.
+    
     // Random generator
-    std::mt19937 generator(std::random_device{}());
+    std::random_device r;
+    std::default_random_engine generator{r()};
     std::uniform_int_distribution<int> distribution(0,7);
     
     // No need to move water or garbage
     if ( get_cell_type(i,j) == cell_type::water_only ) return {i,j};
     if ( get_cell_type(i,j) == cell_type::garbage ) return {i,j};
     if ( get_cell_type(i,j) == cell_type::turtle || get_cell_type(i,j) == cell_type::ship ) {
+
+      // Delta of the cell moves
+      auto delta_i = vector<int> {1,1,1,0,-1,-1,-1,0};
+      auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
+      
       // Need to check if the move is a valid one
       int new_i, new_j;
       bool valid_cell_move = false;
-      while ( !valid_cell_move ) {
+      int tries_to_move = 0;
+      while ( !valid_cell_move && tries_to_move < 100 ) {
 	// Get a cell to move to
 	int move_to_cell = distribution(generator);
-	auto [tmp_i,tmp_j] = get_new_indicies(i, j, move_to_cell);
-	new_i = tmp_i;
-	new_j = tmp_j;
-	valid_cell_move = is_valid_move(i, j, new_i, new_j);
-      }
-      return {new_i,new_j};
-    }
-    return {-1,-1}; // User will know something is wrong
-  }
+	new_i = i + delta_i[move_to_cell];
+	new_j = j + delta_j[move_to_cell];
 
-  pair<int,int> get_new_indicies(int i, int j, int move_direction) {
-    int new_i = i;
-    int new_j = j;
+	// Check if cell CAN be moved to
+	valid_cell_move = !(g(new_i,new_j).get_cell_type()==cell_type::ship ||
+			    g(new_i,new_j).get_cell_type()==cell_type::turtle);	
+       	tries_to_move++;
+      } // End while loop over attempting to move
+      
+      // Check if we were actually able to move
+      if (!valid_cell_move) {
+	g(i,j) = get_cell_type(i,j);
+	return; // exit function now
+      } // End checking if a valid move was produced
 
-    switch(move_direction) {
-      case 0: new_i -= 1; new_j -= 1; break; // top-left
-      case 1: new_i -= 1; new_j += 0; break; // top
-      case 2: new_i -= 1; new_j += 1; break; // top-right
-      case 3: new_i += 0; new_j += 1; break; // right
-      case 4: new_i += 1; new_j += 1; break; // bottom-right
-      case 5: new_i += 1; new_j += 0; break; // bottom
-      case 6: new_i += 1; new_j -= 1; break; // bottom-left
-      case 7: new_i += 0; new_j -= 1; break; // left
-      default: break; // invalid direction, stay in place
-    }
-
-    return {new_i, new_j};
-  } // End getting new indicies
-
-  bool is_valid_move(int i, int j, int new_i, int new_j) {
-    if (new_i < 0 || new_j < 0) return false;
-    if (new_i >= m || new_j >= n) return false;
-    //if ( get_cell_type(new_i,new_j) == cell_type::ship || get_cell_type(new_i,new_j) == cell_type::turtle ) return false;
-    return true;
-  } // Done checking if the move is valid
+      // Otherwise we will move it
+      if (g(new_i,new_j).get_cell_type()==cell_type::garbage &&
+	  get_cell_type()==cell_type::turtle) {
+	g(new_i,new_j) = cell_type::garbage;
+	g(i,j) = cell_type::water_only;
+      } // End checking if turtle dies
+      else if (g(new_i,new_j).get_cell_type()==cell_type::garbage &&
+	       get_cell_type()==cell_type::ship) {
+	g(new_i,new_j) = cell_type::ship;
+	g(i,j) = cell_type::water_only;
+      } // End checking if ship picks up trash
+      else {
+	g(new_i,new_j) = get_cell_type(i,j);
+	g(i,j) = cell_type::water_only;
+      } // End moving if the move to cell is just water
+      
+    } // End checking if its a turtle or ship
+    
+  } // End random_motion generation 
   
   vector<cell> get_surroundings(  ) {
     // Diagram of surroundings. The number represents the index in the return vector:

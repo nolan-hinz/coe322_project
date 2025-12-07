@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <utility>
 #include <tuple>
+#include <cmath>
 
 using std::vector;
 
@@ -56,7 +57,26 @@ public:
       
   } // Done initiateing tshe random grid
   void print_grid() { last_grid.print_grid(); }; // printout of the grid
+
+  void reproduce_turtles( double rate ) {
     
+  } // End reproducing turtles
+
+  std::vector<std::pair<int,int>> permuted_indicies() {
+    // Function returns indicies of our grid in a random order (for random updates)
+    for (int i=0 ; i<m ; i++) {
+      for (int j=0 ; j<n ; j++) {
+	indicies.push_back({i,j});
+      } // End loop over columns
+    } // End loop over rows
+
+    // Shuffle the indicies and return them 
+    std::random_device r;
+    std::default_random_engine generator{r()};
+    std::shuffle(indicies.begin(),indicies.end(),generator);
+    return indicies;
+  } // End shuffling the indicies of the grid
+  
   void step_forward() { // Steps forward in time one step
     // Below is the diagram for how are ships will pick to move
     // 0  1  2
@@ -64,66 +84,27 @@ public:
     // 6  5  4
     // Ship will pick a random square around it assuming it is not
     // the edge and then it will move it there
+    
+    // First loop over and transfer just the garbage to the new grid
     for ( int i=0 ; i < n_rows ; i++ ) {
       for ( int j=0 ; j < n_cols ; j++ ) {
 	cell_type cur_type = last_grid(i,j).get_cell_type();
+	if ( cur_type == cell_type::garbage ) { current_grid(i,j) = cur_type; }
+	else { current_grid(i,j) = cell_type::water_only; }
+      } // End loop over columns
+    } // End loop over rows
 
-	// First move all the garbage over
-	// Everything else will start as just water
-	if ( cur_type == cell_type::garbage ) {
-	  current_grid(i,j) = cur_type;
-	}
-	else {
-	  current_grid(i,j) = cell_type::water_only;
-	}
-      }
-    }
+    // Next do loop over whole ocean, this time randomly so change up the order of update
+    for ( auto [i,j] : permuted_indicies() ) {
+      cell_type cur_type = last_grid(i,j).get_cell_type();
+      // Only move the ships and the turtles
+      if (cur_type == cell_type::ship || cur_type == cell_type::turtle) {
+	last_grid.random_motion(i,j,current_grid);
+      } // End moving turtle or ship
+    } // End loop over permuted indicies
+    last_grid = current_grid; // Update the last grid to be the current grid
+  } // End grid update 
 
-    for ( int i=0 ; i<n_rows ; i++ ) {
-      for ( int j=0 ; j<n_cols ; j++ ) {
-	cell_type cur_type = last_grid(i,j).get_cell_type();
-
-	if (cur_type == cell_type::ship || cur_type == cell_type::turtle) {
-	  bool is_valid = false;
-	  int new_i, new_j;
-	  int attempts_to_move = 0;
-	  while (!is_valid) {
-	    auto [tmp_i,tmp_j] = last_grid.random_motion(i,j);
-	    new_i = tmp_i;
-	    new_j = tmp_j;
-	    is_valid = !(current_grid(new_i,new_j).get_cell_type()==cell_type::ship ||
-			 current_grid(new_i,new_j).get_cell_type()==cell_type::turtle);
-	    // If we try to move too many times then just don't move
-	    attempts_to_move++;
-	    if (attempts_to_move >= 100) {
-	      new_i = i;
-	      new_j = j;
-	      break;
-	    }
-	  }
-	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::garbage && cur_type==cell_type::turtle) {
-	    // Turtle dies in this case
-	    current_grid(new_i,new_j) = cell_type::garbage;
-	    current_grid(i,j) = cell_type::water_only;
-	  }
-	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::garbage && cur_type==cell_type::ship) {
-	    // ship picks up the garbage
-	    current_grid(new_i,new_j) = cell_type::ship;
-	    current_grid(i,j) = cell_type::water_only;
-	  }
-	  if (current_grid(new_i,new_j).get_cell_type()==cell_type::water_only) {
-	    current_grid(new_i,new_j) = cur_type;
-	    current_grid(i,j) = cell_type::water_only;
-	  }
-	  if ( new_i == i && new_j == j ) {
-	    // if thing didn't move make sure we still put it in the new grid
-	    current_grid(i,j) = cur_type;
-	  }
-	}
-      }
-    }
-    last_grid = current_grid;
-  }
 
   void simulate( int T ) { // Simulates for T time steps
     for ( int t=0; t < T; t++ ) {
