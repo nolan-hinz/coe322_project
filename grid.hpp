@@ -41,6 +41,7 @@ std::ostream& operator<<(std::ostream &os, const cell &c) {
   case cell_type::turtle:     os << "O"; break;
   case cell_type::garbage:    os << "X"; break;
   } // Done writing correct cell type out to screen
+  return os;
 } // End overloading << to cout cells
 
 class grid_2d {
@@ -73,6 +74,7 @@ public:
 	if ( ct == get_cell_type(i,j) ) { count++; }
       } // End loop over columns
     } // End loop over rows
+    return count;
   } // End function for counting cells of a certain type
   
   void print_grid() {
@@ -84,7 +86,7 @@ public:
       std::cout << '\n';
     } // End loop over the rows
     for (int i=0 ; i<m ; i++) { std::cout << "-"; }
-    std::cout << '\n'
+    std::cout << '\n';
   } // End printing out the grid
   
   cell& get_cell( int i , int j ) { return grid_pts.at( i*n + j ); } // Reference so we can modify the grid
@@ -120,8 +122,10 @@ public:
 	new_j = j + delta_j[move_to_cell];
 
 	// Check if cell CAN be moved to
-	valid_cell_move = !(g(new_i,new_j).get_cell_type()==cell_type::ship ||
-			    g(new_i,new_j).get_cell_type()==cell_type::turtle);	
+	bool valid_move = !(g.get_cell_type(new_i,new_j)==cell_type::ship ||
+			    g.get_cell_type(new_i,new_j)==cell_type::turtle);
+	bool is_inbounds = (new_i < 0 || new_i >= m && || new_j < 0 || new_j >= n);
+	valid_cell_move = (valid_move && is_inbounds); // BOTH must be true to move
        	tries_to_move++;
       } // End while loop over attempting to move
       
@@ -132,13 +136,13 @@ public:
       } // End checking if a valid move was produced
 
       // Otherwise we will move it
-      if (g(new_i,new_j).get_cell_type()==cell_type::garbage &&
-	  get_cell_type()==cell_type::turtle) {
+      if (g.get_cell_type(new_i,new_j)==cell_type::garbage &&
+	  get_cell_type(i,j)==cell_type::turtle) {
 	g(new_i,new_j) = cell_type::garbage;
 	g(i,j) = cell_type::water_only;
       } // End checking if turtle dies
-      else if (g(new_i,new_j).get_cell_type()==cell_type::garbage &&
-	       get_cell_type()==cell_type::ship) {
+      else if (g.get_cell_type(new_i,new_j)==cell_type::garbage &&
+	       get_cell_type(i,j)==cell_type::ship) {
 	g(new_i,new_j) = cell_type::ship;
 	g(i,j) = cell_type::water_only;
       } // End checking if ship picks up trash

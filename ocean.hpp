@@ -64,8 +64,8 @@ public:
 
   std::vector<std::pair<int,int>> permuted_indicies() {
     // Function returns indicies of our grid in a random order (for random updates)
-    for (int i=0 ; i<m ; i++) {
-      for (int j=0 ; j<n ; j++) {
+    for (int i=0 ; i<n_rows ; i++) {
+      for (int j=0 ; j<n_cols ; j++) {
 	indicies.push_back({i,j});
       } // End loop over columns
     } // End loop over rows
