@@ -1,6 +1,7 @@
 #pragma once // guard against multiple instances
 
 #include "grid.hpp"
+#include "random_gen.cpp"
 #include <vector>
 #include <random>
 #include <stdexcept>
@@ -59,7 +60,7 @@ public:
     int current_turtle_count = last_grid.get_num_cell_type(cell_type::turtle);
 
     // Get turtles to add
-    int delta_turtles = round(rate*current_turtle_count);
+    int delta_turtles = static_cast<int>(std::round(rate*current_turtle_count - current_turtle_count));
 
     for ( int i=0 ; i<delta_turtles ; i++ ) {
       for ( auto [ii,jj] : permuted_indicies() ) {
@@ -73,15 +74,15 @@ public:
 
   std::vector<std::pair<int,int>> permuted_indicies() {
     // Function returns indicies of our grid in a random order (for random updates)
+    std::vector<pair<int,int>> indicies;
     for (int i=0 ; i<n_rows ; i++) {
       for (int j=0 ; j<n_cols ; j++) {
 	indicies.push_back({i,j});
       } // End loop over columns
     } // End loop over rows
 
-    // Shuffle the indicies and return them 
-    std::random_device r;
-    std::default_random_engine generator{r()};
+    // Shuffle the indicies and return them
+    auto &generator = engine();                        ;
     std::shuffle(indicies.begin(),indicies.end(),generator);
     return indicies;
   } // End shuffling the indicies of the grid
@@ -105,20 +106,18 @@ public:
 
     // Next do loop over whole ocean, this time randomly so change up the order of update
     for ( auto [i,j] : permuted_indicies() ) {
-      cell_type cur_type = last_grid(i,j).get_cell_type();
-      // Only move the ships and the turtles
-      if (cur_type == cell_type::ship || cur_type == cell_type::turtle) {
-	last_grid.random_motion(i,j,current_grid);
-      } // End moving turtle or ship
+      last_grid.random_motion(i,j,current_grid);
     } // End loop over permuted indicies
     last_grid = current_grid; // Update the last grid to be the current grid
-  } // End grid update 
+  } // End grid update
 
+  int count_around(int i, int j, cell_type ct) { return last_grid.count_around(i,j,ct); }
 
+  int count_last_grid_items(cell_type ct) { return last_grid.get_num_cell_type(ct); }
+  
   void simulate( int T ) { // Simulates for T time steps
     for ( int t=0; t < T; t++ ) {
       step_forward();
     }
   }
-    
 }; // End defining the ocean class

@@ -4,6 +4,7 @@
 #include <random>
 #include <algorithm>
 #include <utility>
+#include "random_gen.cpp"
 using std::pair;
 using std::vector;
 
@@ -57,12 +58,7 @@ public:
   
   // Methods
   void shuffle_grid() {
-    std::random_device r;
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // KEEPING SEED SAME FOR TESTING REMEMBER TO REMOVE
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    std::default_random_engine generator(1000);
-    // Shuffle using the generator we created
+    auto &generator = engine();
     std::shuffle(grid_pts.begin(), grid_pts.end(), generator);
   } // End of shuffle grid
 
@@ -85,32 +81,38 @@ public:
       } // End loop over the columns
       std::cout << '\n';
     } // End loop over the rows
-    for (int i=0 ; i<m ; i++) { std::cout << "-"; }
+    for (int i=0 ; i<n ; i++) { std::cout << "-"; }
     std::cout << '\n';
   } // End printing out the grid
   
   cell& get_cell( int i , int j ) { return grid_pts.at( i*n + j ); } // Reference so we can modify the grid
 
-  void random_motion( int i , int j , grid_2d &g ) {
+  void random_motion( int i , int j , grid_2d &g , bool smart_ships , bool ocean_currents ) {
     // Takes indicies of a grid, determines what is at that grid point.
     // If it's a ship or a turtle it picks a new location for it in an adjacent cell.
     // It then makes that move on a different grid which is passed to the function (g)
     // The function checks the new grid (g), to make sure the move is valid.
+
+    // 0    1     2
+    // 7  CELL    3
+    // 6    5     4
+    
+    // Deltas in position based on which cell around we are picking ordered from 0 to 7 as shown
+    auto delta_i = vector<int> {1,1,1,0,-1,-1,-1,0};
+    auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
     
     // Random generator
-    std::random_device r;
-    std::default_random_engine generator{r()};
+    auto &generator = engine();
     std::uniform_int_distribution<int> distribution(0,7);
     
     // No need to move water or garbage
-    if ( get_cell_type(i,j) == cell_type::water_only ) return {i,j};
-    if ( get_cell_type(i,j) == cell_type::garbage ) return {i,j};
-    if ( get_cell_type(i,j) == cell_type::turtle || get_cell_type(i,j) == cell_type::ship ) {
-
-      // Delta of the cell moves
-      auto delta_i = vector<int> {1,1,1,0,-1,-1,-1,0};
-      auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
+    if ( get_cell_type(i,j) == cell_type::water_only ) return;
+    if ( get_cell_type(i,j) == cell_type::garbage && ocean_currents ) {
+      int new_cell = distribution(generator);
       
+
+    else if ( get_cell_type(i,j) == cell_type::garbage && !ocean_currents ) return;
+    if ( get_cell_type(i,j) == cell_type::turtle ) {
       // Need to check if the move is a valid one
       int new_i, new_j;
       bool valid_cell_move = false;
@@ -120,13 +122,26 @@ public:
 	int move_to_cell = distribution(generator);
 	new_i = i + delta_i[move_to_cell];
 	new_j = j + delta_j[move_to_cell];
+	if (!(new_i >= 0 && new_i < m && new_j >= 0 && new_j < n)) {
+	  valid_cell_move=false;
+	  tries_to_move++;
+          continue;
+	} // End check if in bounds
 
-	// Check if cell CAN be moved to
-	bool valid_move = !(g.get_cell_type(new_i,new_j)==cell_type::ship ||
-			    g.get_cell_type(new_i,new_j)==cell_type::turtle);
-	bool is_inbounds = (new_i < 0 || new_i >= m && || new_j < 0 || new_j >= n);
-	valid_cell_move = (valid_move && is_inbounds); // BOTH must be true to move
-       	tries_to_move++;
+	cell_type last_destination = get_cell_type(new_i,new_j);
+	cell_type destination = g.get_cell_type(new_i,new_j);
+	if (destination == cell_type::ship || destination == cell_type::turtle) {
+	  valid_cell_move=false;
+	  tries_to_move++;
+	  continue;
+	} // End check if destination already has something on it
+
+	if (last_destination == cell_type::ship || last_destination == cell_type::turtle) {
+	  valid_cell_move=false;
+	  tries_to_move++;
+	  continue;
+	}
+	else { valid_cell_move=true; }
       } // End while loop over attempting to move
       
       // Check if we were actually able to move
@@ -136,32 +151,41 @@ public:
       } // End checking if a valid move was produced
 
       // Otherwise we will move it
-      if (g.get_cell_type(new_i,new_j)==cell_type::garbage &&
-	  get_cell_type(i,j)==cell_type::turtle) {
-	g(new_i,new_j) = cell_type::garbage;
-	g(i,j) = cell_type::water_only;
-      } // End checking if turtle dies
-      else if (g.get_cell_type(new_i,new_j)==cell_type::garbage &&
-	       get_cell_type(i,j)==cell_type::ship) {
-	g(new_i,new_j) = cell_type::ship;
-	g(i,j) = cell_type::water_only;
-      } // End checking if ship picks up trash
+      cell_type destination = g.get_cell_type(new_i,new_j);
+      cell_type cur_type = get_cell_type(i,j);
+      if (destination==cell_type::garbage && cur_type==cell_type::turtle) { g(i,j) = cell_type::water_only; } // Turtle dies, trash remains
+      else if (destination==cell_type::garbage && cur_type==cell_type::ship) {
+	g(i,j) = cell_type::water_only; // Ship moves away so now its water
+	g(new_i,new_j) = cell_type::ship; // Ship replaces the trash
+      } // End replacing trash with ship
       else {
-	g(new_i,new_j) = get_cell_type(i,j);
+	g(new_i,new_j) = cur_type;
 	g(i,j) = cell_type::water_only;
-      } // End moving if the move to cell is just water
-      
+      } // If the first two ifs did not trip anything then we know it is water only
     } // End checking if its a turtle or ship
-    
-  } // End random_motion generation 
-  
-  vector<cell> get_surroundings(  ) {
-    // Diagram of surroundings. The number represents the index in the return vector:
-    // 0   1   2
-    // 7  CELL 3
-    // 6   5   4
-    
-  } // End finding the surroundings
+  } // End random_motion generation
+
+  vector<pair<int,int>> neighbors(int i, int j) {
+    // Init the return and the deltas in position
+    vector<pair<int,int>> indicies;
+    auto delta_i = vector<int> {1,1,1,0,-1,-1,-1,0};
+    auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
+
+    for ( int k=0 ; k<=7 ; k++ ) {
+      int ii = i+delta_i[k];
+      int jj = j+delta_j[k];
+      if ( ii<0 || ii>=m || jj<0 || jj>=n ) { continue; }
+      else { indicies.push_back({ii,jj}); }
+    } // End loop over neighbors
+  } // End returning neighboring indicies
+
+  int count_around(int i, int j, cell_type ct) {
+    int count = 0;
+    for ( auto [ii,jj] : neighbors(i,j) ) {
+      if ( get_cell_type(ii,jj) == ct ) { count++; }
+    } // End loop over the neighboring cells
+    return count;
+  } // End counting the type of objects around a certain cell
   
   cell_type get_cell_type( int i , int j ) { return grid_pts.at( i*n + j ).get_cell_type(); }
   
