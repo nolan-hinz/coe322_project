@@ -168,7 +168,7 @@ public:
     auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
 
     for ( auto [ii,jj] : neighbors(i,j) ) {
-      if ( g.get_cell_type(ii,jj) == cell_type::garbage ) { return {ii,jj}; }
+      if ( g.get_cell_type(ii,jj) == cell_type::garbage ) { std:: cout << ii << "|" << jj << '\n'; return {ii,jj}; }
       else { continue; }
     } // End loop over the neighbors
 
