@@ -87,7 +87,7 @@ public:
     return indicies;
   } // End shuffling the indicies of the grid
   
-  void step_forward() { // Steps forward in time one step
+  void step_forward(bool smart_ships, bool ocean_currents) { // Steps forward in time one step
     // Below is the diagram for how are ships will pick to move
     // 0  1  2
     // 7  S  3
@@ -106,7 +106,7 @@ public:
 
     // Next do loop over whole ocean, this time randomly so change up the order of update
     for ( auto [i,j] : permuted_indicies() ) {
-      last_grid.random_motion(i,j,current_grid);
+      last_grid.random_motion(i,j,current_grid,smart_ships,ocean_currents);
     } // End loop over permuted indicies
     last_grid = current_grid; // Update the last grid to be the current grid
   } // End grid update
@@ -115,9 +115,10 @@ public:
 
   int count_last_grid_items(cell_type ct) { return last_grid.get_num_cell_type(ct); }
   
-  void simulate( int T ) { // Simulates for T time steps
+  void simulate( int T , double turtle_rate , int turtle_steps , bool smart_ships , bool ocean_currents ) { // Simulates for T time steps
     for ( int t=0; t < T; t++ ) {
-      step_forward();
-    }
-  }
+      step_forward(smart_ships,ocean_currents);
+      if ( t%turtle_steps == 0 ) { reproduce_turtles(turtle_rate); }
+    } // End loop over all timesteps
+  } // End simulation
 }; // End defining the ocean class

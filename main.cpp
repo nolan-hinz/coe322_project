@@ -57,7 +57,13 @@ int main( int argc, char ** argv ) {
   options.add_options()
     ("p,printout","<bool> 1 if you want to print out ocean before and after, 0 otherwise.",
      cxxopts::value<bool>()->default_value("1"));
-
+  options.add_options()
+    ("i,intelligent_boats","<bool> 1 if you want ships to move to grab trash if it is in an adjacent cell, 0 if you want random ship motion.",
+     cxxopts::value<bool>()->default_value("0"));
+  options.add_options()
+    ("o,ocean_currents","<bool> 1 if you want trash to randomly move (like there are ocean currents), 0 if you want them in place.",
+     cxxopts::value<bool>()->default_value("0"));
+					 
   // Parse the input
   auto result = options.parse(argc,argv);
 
@@ -77,6 +83,8 @@ int main( int argc, char ** argv ) {
   int timesteps 	= 50;
   int n_sims 		= 10000;
   bool printgrid = true;
+  bool smart_ships = false;
+  bool ocean_currents = false;
 	
   // Get users inputs
   std::vector<int> v = result["size"].as<std::vector<int>>();
@@ -96,6 +104,8 @@ int main( int argc, char ** argv ) {
   timesteps = result["timesteps"].as<int>();
   n_sims = result["n_simulations"].as<int>();
   printgrid = result["printout"].as<bool>();
+  smart_ships = result["intelligent_boats"].as<bool>();
+  ocean_currents = result["ocean_currents"].as<bool>();
 
   // Init vectors to hold how many turtles, ships, and garbage are left at the end
   std::vector<int> end_turtles(n_sims);
@@ -107,10 +117,7 @@ int main( int argc, char ** argv ) {
     ocean test_ocean(n_rows,n_cols);
     test_ocean.initiate_grid(n_ships,n_turtles,n_garbage);
     if (printgrid) { test_ocean.print_grid(); }
-    for (int j=0 ; j<timesteps ; j++ ) {
-      test_ocean.step_forward();
-      if ( j%turtle_tsteps == 0 ) { test_ocean.reproduce_turtles(turtle_rate); };
-    }
+    test_ocean.simulate(timesteps, turtle_rate, reproduction_tsteps, smart_ships, ocean_currents);
     if (printgrid) { test_ocean.print_grid(); }
     end_turtles[i] = test_ocean.count_last_grid_items(cell_type::turtle);
     end_ships[i] = test_ocean.count_last_grid_items(cell_type::ship);
