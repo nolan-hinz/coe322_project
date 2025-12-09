@@ -58,11 +58,15 @@ int main( int argc, char ** argv ) {
     ("p,printout","<bool> 1 if you want to print out ocean before and after, 0 otherwise.",
      cxxopts::value<bool>()->default_value("1"));
   options.add_options()
-    ("i,intelligent_boats","<bool> 1 if you want ships to move to grab trash if it is in an adjacent cell, 0 if you want random ship motion.",
+    ("i,intelligent_boats","<bool> -i if you want ships to move to grab trash if it is in an adjacent cell, 0 if you want random ship motion.",
      cxxopts::value<bool>()->default_value("0"));
   options.add_options()
-    ("o,ocean_currents","<bool> 1 if you want trash to randomly move (like there are ocean currents), 0 if you want them in place.",
+    ("o,ocean_currents","<bool> -o if you want trash to randomly move (like there are ocean currents), 0 if you want them in place.",
      cxxopts::value<bool>()->default_value("0"));
+  options.add_options()("ts,track_sardines","<bool> -ts if you want to track the sardine population",
+			cxxopts::value<bool>()->default_value("0"));
+  options.add_options()("sp,sardine_params","<double,double,double>, initial sardine population, rate at which sardines reproduce, how many sardines a turtle eats when the reproduction step is called.",
+			cxxopts::value<vector<double>>()->default_value("100,1,0"));
 					 
   // Parse the input
   auto result = options.parse(argc,argv);
@@ -85,6 +89,10 @@ int main( int argc, char ** argv ) {
   bool printgrid = true;
   bool smart_ships = false;
   bool ocean_currents = false;
+  bool track_sardines = false;
+  double init_sardine_pop = 100.0;
+  double sardine_birth_rate = 1.0;
+  double sardine_eaten_rate = 0.0;
 	
   // Get users inputs
   std::vector<int> v = result["size"].as<std::vector<int>>();
@@ -96,7 +104,7 @@ int main( int argc, char ** argv ) {
   n_ships = result["boats"].as<int>();
   n_garbage = result["garbage"].as<int>();
   std::vector<double> v2 = result["turtle_rate"].as<std::vector<double>>();
-  if (v.size() == 2) {
+  if (v2.size() == 2) {
     turtle_rate = v2[0];
     reproduction_tsteps = v2[1];
   }
@@ -106,22 +114,36 @@ int main( int argc, char ** argv ) {
   printgrid = result["printout"].as<bool>();
   smart_ships = result["intelligent_boats"].as<bool>();
   ocean_currents = result["ocean_currents"].as<bool>();
+  track_sardines = result["track_sardines"].as<bool>();
+  std::vector<double> v3 = result["sardine_params"].as<std::vector<double>>();
+  if ( v3.size()==3 ) {
+    init_sardine_pop = v3[0];
+    sardine_birth_rate = v3[1];
+    sardine_eaten_rate = v3[2];
+  }
 
+  int sardine_pop = std::round(init_sardine_pop);
+  
   // Init vectors to hold how many turtles, ships, and garbage are left at the end
   std::vector<int> end_turtles(n_sims);
   std::vector<int> end_ships(n_sims);
   std::vector<int> end_garbage(n_sims);
+  std::vector<int> end_sardines(n_sims);
 
   // Loop over and run the simulation n_sims times
   for ( int i=0 ; i<n_sims ; i++ ) {
-    ocean test_ocean(n_rows,n_cols);
+    ocean test_ocean(n_rows,n_cols,sardine_pop);
     test_ocean.initiate_grid(n_ships,n_turtles,n_garbage);
     if (printgrid) { test_ocean.print_grid(); }
-    test_ocean.simulate(timesteps, turtle_rate, reproduction_tsteps, smart_ships, ocean_currents);
+    test_ocean.simulate(timesteps, turtle_rate, reproduction_tsteps, smart_ships, ocean_currents,
+			track_sardines, sardine_birth_rate, sardine_eaten_rate);
     if (printgrid) { test_ocean.print_grid(); }
+
+    // We can use last_grid_items because last grid is updated after each forward step
     end_turtles[i] = test_ocean.count_last_grid_items(cell_type::turtle);
     end_ships[i] = test_ocean.count_last_grid_items(cell_type::ship);
     end_garbage[i] = test_ocean.count_last_grid_items(cell_type::garbage);
+    end_sardines[i] = test_ocean.sardine_count();
   } // Looping over the number of simulations to run
 
   // Compute the mean ending amounts of each
@@ -143,6 +165,10 @@ int main( int argc, char ** argv ) {
   std::cout << "Standard deviation of ships: " << ship_std << '\n';
   std::cout << "Mean garbage: " << garbage_mean << '\n';
   std::cout << "Standard deviation of garbage: " << garbage_std << '\n';
+  if ( track_sardines == true ) {
+    std::cout << "Mean sardines: " << compute_mean(end_sardines) << '\n';
+    std::cout << "Standard deviation of sardines: " << compute_std(end_sardines) << '\n';
+  } // End displaying sardines if asked for 
 
   // Return the turtle vector, ship vector, and the garbage vector
   std::tuple<std::vector<int>,std::vector<int>,std::vector<int>> turtles_ships_garbage{end_turtles,end_ships,end_garbage};

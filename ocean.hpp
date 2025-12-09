@@ -15,15 +15,16 @@ class ocean {
 private:
   grid_2d current_grid , last_grid;
   int n_cells, n_rows , n_cols;
+  int n_sardines;
 public:
   // creating an ocean of size m and n
-    ocean( int n_rows , int n_cols ) : current_grid( n_rows , n_cols ) , last_grid( n_rows , n_cols ) , n_cells(n_rows*n_cols) , n_rows(n_rows) , n_cols(n_cols) {};
+  ocean( int n_rows , int n_cols , int n_sardines ) : current_grid( n_rows , n_cols ) , last_grid( n_rows , n_cols ) , n_cells(n_rows*n_cols) , n_rows(n_rows) , n_cols(n_cols) , n_sardines(n_sardines) {};
 
   // Methods
   void initiate_grid( int ship_count , int turtle_count, int garbage_count ) { // Initiates the very first grid
     int total_occupied = ship_count+turtle_count+garbage_count;
     if (total_occupied > n_cells) throw std::runtime_error("More occupied cells than number of cells in the grid. Fix your inputs.");
-    
+ 
     // Building a vector with the positions of the objects
     vector<int> grid_locations(total_occupied);
     std::iota(grid_locations.begin(), grid_locations.end(), 0);
@@ -56,11 +57,28 @@ public:
   } // Done initiateing tshe random grid
   void print_grid() { last_grid.print_grid(); }; // printout of the grid
 
+  int sardine_count() { return n_sardines; }
+  
+  void eat_and_reproduce_sardines( double rate_of_birth , double rate_of_eating ) {
+    // Number of turtles in the current ocean
+    int turtle_count = last_grid.get_num_cell_type( cell_type::turtle );
+
+    // Find sardines eaten, subtract that, and get the current number
+    int sardines_eaten = std::round(rate_of_eating*n_sardines);
+    int sardines_after_lunch = std::round(n_sardines - sardines_eaten);
+    int sardines_after_dinner = std::round(n_sardines*rate_of_eating);
+
+    if ( sardines_after_dinner < 0 ) { sardines_after_dinner = 0; }
+    
+    // Set new number of sardines
+    n_sardines = sardines_after_dinner;
+  } // End reproducing and eating the sardines
+
   void reproduce_turtles( double rate ) {
     int current_turtle_count = last_grid.get_num_cell_type(cell_type::turtle);
 
     // Get turtles to add
-    int delta_turtles = static_cast<int>(std::round(rate*current_turtle_count - current_turtle_count));
+    int delta_turtles = std::round(rate*current_turtle_count - current_turtle_count);
 
     for ( int i=0 ; i<delta_turtles ; i++ ) {
       for ( auto [ii,jj] : permuted_indicies() ) {
@@ -115,10 +133,15 @@ public:
 
   int count_last_grid_items(cell_type ct) { return last_grid.get_num_cell_type(ct); }
   
-  void simulate( int T , double turtle_rate , int turtle_steps , bool smart_ships , bool ocean_currents ) { // Simulates for T time steps
+  void simulate( int T , double turtle_rate , int turtle_steps , bool smart_ships , bool ocean_currents , bool track_sardines , double sardine_birth_rate , double sardine_eaten_rate ) { // Simulates for T time steps
     for ( int t=0; t < T; t++ ) {
       step_forward(smart_ships,ocean_currents);
-      if ( t%turtle_steps == 0 ) { reproduce_turtles(turtle_rate); }
+      if ( t%turtle_steps == 0 ) {
+	reproduce_turtles(turtle_rate);
+	if ( track_sardines ) {
+	  eat_and_reproduce_sardines(sardine_birth_rate, sardine_eaten_rate);
+	} // Done reproducting sardines
+      } // Done reproducing turtles
     } // End loop over all timesteps
   } // End simulation
 }; // End defining the ocean class

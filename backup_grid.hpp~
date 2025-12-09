@@ -168,44 +168,14 @@ public:
     auto delta_j = vector<int> {-1,0,1,1,1,0,-1,-1};
 
     for ( auto [ii,jj] : neighbors(i,j) ) {
-      if ( g.get_cell_type(ii,jj) == cell_type::garbage ) { return {ii,jj}; }
+      if ( g.get_cell_type(ii,jj) == cell_type::garbage ) { std:: cout << ii << "|" << jj << '\n'; return {ii,jj}; }
       else { continue; }
     } // End loop over the neighbors
 
     // If no trash return random move
     return get_valid_random_move(i,j,cell_type::ship,g);    
   } // End getting smart move for a ship
-  void random_motion(int i, int j, grid_2d &g, bool smart_ships, bool ocean_currents) {
-    cell_type ct = get_cell_type(i, j);
 
-    // Water and garbage do not move
-    if (ct == cell_type::water_only || ct == cell_type::garbage) return;
-
-    if (ct == cell_type::turtle) {
-      auto [new_i, new_j] = get_valid_random_move(i, j, cell_type::turtle, g);
-      cell_type dest = g.get_cell_type(new_i, new_j);
-
-      if (new_i == i && new_j == j) {
-	g(i, j) = cell_type::turtle; // stay in place
-	return;
-      }
-
-      g(new_i, new_j) = (dest == cell_type::garbage ? cell_type::garbage : cell_type::turtle);
-      g(i, j) = cell_type::water_only;
-    }
-
-    else if (ct == cell_type::ship) {
-      auto [new_i, new_j] = smart_ships ? smart_ship_move(i, j, g)
-	: get_valid_random_move(i, j, cell_type::ship, g);
-      if (new_i == i && new_j == j) {
-	g(i, j) = cell_type::ship; // stay in place
-	return;
-      }
-
-      g(new_i, new_j) = cell_type::ship; // ship moves
-      g(i, j) = cell_type::water_only;
-    }
-  } /*
   void random_motion( int i , int j , grid_2d &g , bool smart_ships , bool ocean_currents ) {
     // Takes indicies of a grid, determines what is at that grid point.
     // If it's a ship or a turtle it picks a new location for it in an adjacent cell.
@@ -219,8 +189,30 @@ public:
     // No need to move water
     if ( get_cell_type(i,j) == cell_type::water_only ) return;
 
+    // Only move garbage if ocean currents are a thing
+    if ( get_cell_type(i,j) == cell_type::garbage && ocean_currents ) {
+      auto [new_i,new_j] = get_valid_random_move(i,j,cell_type::garbage,g);
+
+      // Check if it actually moved
+      if ( new_i == i && new_j == j ) {	g(i,j) = cell_type::garbage; return; }
+      
+      cell_type destination = g.get_cell_type(new_i,new_j);
+      
+      // If its a turtle, the trash wins, if its a ship, the ship wins
+      if ( destination == cell_type::turtle ) {
+	g(new_i,new_j) = cell_type::garbage;
+      }
+      else if ( destination == cell_type::ship ) {
+	g(new_i,new_j) = cell_type::ship;
+      }
+      else { g(new_i,new_j) = cell_type::garbage; }
+      } // End moving trash
+    } // End moving trash
+
     // No need to move trash if there are no currents
-    else if ( get_cell_type(i,j) == cell_type::garbage && !ocean_currents ) { return; }
+    else if ( get_cell_type(i,j) == cell_type::garbage && !ocean_currents ) {
+      g(i,j) = cell_type::garbage;
+      return; }
 
     else if ( get_cell_type(i,j) == cell_type::turtle ) {
       auto [new_i,new_j] = get_valid_random_move(i,j,cell_type::turtle,g);
@@ -270,7 +262,6 @@ public:
       g(i,j)=cell_type::garbage;
     } // End moving the ship
   } // End moving objedcts in the grid
-    */
 
   vector<pair<int,int>> neighbors(int i, int j) {
     // Init the return and the deltas in position
